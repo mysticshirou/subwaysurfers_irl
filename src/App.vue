@@ -45,7 +45,7 @@ import SubwaySurfers from './components/SubwaySurfers.vue';
       });
 
       this.socket.on('connection_test', (msg) => {
-        alert('JS function triggered by Flask: ' + msg);
+        alert('JS function triggered by Flask: ' + msg.msg);
       })
 
       // Listen for Flask events
