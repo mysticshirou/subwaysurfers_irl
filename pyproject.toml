@@ -19,6 +19,7 @@ dependencies = [
     "flask>=3.1.2",
     "flask-socketio>=5.5.1",
     "keyboard>=0.13.5",
+    "mediapipe>=0.10.14",
     "numpy>=2.0.2",
     "opencv-python>=4.11.0.86",
     "pillow>=11.3.0",
