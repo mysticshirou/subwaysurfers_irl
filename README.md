@@ -1,6 +1,6 @@
 ## Prerequisites
 
-- `uv` must be installed. You can find installation instructions here: [https://github.com/astral-sh/uv](https://github.com/astral-sh/uv)
+- `uv` must be installed. You can find installation instructions here: [https://docs.astral.sh/uv/getting-started/installation/](https://docs.astral.sh/uv/getting-started/installation/)
 
 ## Steps to run
 
