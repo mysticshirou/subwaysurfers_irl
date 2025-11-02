@@ -1,13 +1,17 @@
 !<template>
   <div class="webcam-wrapper">
-    <img src="" alt="" id="webcam"/>
+    <img :src="videoUrl" alt="" id="webcam"/>
     <p>Video Stream Loading...</p>
   </div>
 </template>
 
 <script>
   export default {
-
+    data() {
+      return {
+        videoUrl: "http://127.0.0.1:5000/webcam-feed"
+      }
+    }
   }
 </script>
 
