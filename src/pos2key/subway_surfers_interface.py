@@ -10,22 +10,22 @@ class KeyboardEventError(Exception):
         super().__init__(error_message)
 
 class KeyboardEventManager():
-    def __init__(self, flask_app) -> None:
+    def __init__(self, socketio) -> None:
         """
         Initialise SocketIO connection
         """
-        self.socketio = SocketIO(flask_app)
+        self.socketio = socketio
 
     def _jump(self) -> str:
-        self.socketio.emit('triggerKeyboard', {'key': 'ArrowUp', "code": 37})
+        self.socketio.emit('triggerKeyboard', {'key': 'ArrowUp', "code": 38})
         return "Jump"
 
     def _roll(self) -> str:
-        self.socketio.emit('triggerKeyboard', {'key': 'ArrowDown', "code": 38})
+        self.socketio.emit('triggerKeyboard', {'key': 'ArrowDown', "code": 40})
         return "Roll"
 
     def _left(self) -> str:
-        self.socketio.emit('triggerKeyboard', {'key': 'ArrowLeft', "code": 40})
+        self.socketio.emit('triggerKeyboard', {'key': 'ArrowLeft', "code": 37})
         return "Left"
 
     def _right(self) -> str:
@@ -62,15 +62,12 @@ class Grid(Enum):
     RIGHT_ROLL = {"x": 1, "y": -1}
 
 class SubwaySurfer(KeyboardEventManager):
-    def __init__(self, flask_app, position: dict[str, int] = Grid.CENTRE_NEUTRAL.value) -> None:
-        super().__init__(flask_app)
+    def __init__(self, socketio, position: dict[str, int] = Grid.CENTRE_NEUTRAL.value) -> None:
+        super().__init__(socketio)
 
         # Initialise default character position (In the centre column, neutral position = CENTRE_NEUTRAL)
         self.x = position["x"]
         self.y = position["y"]
-
-    def run(self, app, host='0.0.0.0', port=5000):
-        self.socketio.run(app, host, port)
 
     def _moveX(self, x_distance: int) -> str:
         """
