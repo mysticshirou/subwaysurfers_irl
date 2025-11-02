@@ -24,7 +24,7 @@ import SubwaySurfers from './components/SubwaySurfers.vue';
     methods: {
       simulateKeyPress(key, code, keyCode) {
         const canvas = this.$refs.subwaySurfers.$refs.unityContainer.querySelector('canvas');
-        if (!canvas) return;
+        if (!canvas) return "Socketio Client: Canvas not found";
 
         const down = new KeyboardEvent('keydown', { key, code, keyCode, bubbles: true });
         const up = new KeyboardEvent('keyup', { key, code, keyCode, bubbles: true });
@@ -36,33 +36,20 @@ import SubwaySurfers from './components/SubwaySurfers.vue';
       // Initialise SocketIO Client
       this.socket = io('http://127.0.0.1:5000')
 
-      this.socket.on('connect', () => {
-        console.log('Connected to server');
-      });
-
-      this.socket.on('connect_error', (err) => {
-        console.error('Connection error:', err);
-      });
-
-      this.socket.on('connection_test', (msg) => {
-        alert('JS function triggered by Flask: ' + msg.message);
+      // Listen for Flask events
+      this.socket.on('triggerKeyboard', (data) => {
+        console.log('Event received:', data)
+        this.simulateKeyPress(data.key, data.key, data.code)
       })
 
-      // Listen for Flask events
-      // this.socket.on('triggerKeyboard', (data) => {
-      //   console.log('Event received:', data)
-      //   this.simulateKeyPress(data.key, data.key, data.code)
-      // })
-
-      // // Listen for Flask events
-      // this.socket.on('triggerKeyboard', (data) => {
-      //   console.log('Event received:', data)
-      //   this.simulateKeyPress(data.key, data.key, data.code)
-      // })
+      this.socket.on('connectionTest', (msg) => {
+        alert('JS function triggered by Flask: ' + msg.message);
+      })
     },
     beforeUnmount() {
       // Clean up the listener when the component is destroyed
-      this.off('triggerKeyboard')
+      this.socket.off('triggerKeyboard')
+      this.socket.off("connectionTest")
     }
   }
 </script>
