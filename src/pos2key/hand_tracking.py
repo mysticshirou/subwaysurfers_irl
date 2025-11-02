@@ -5,11 +5,14 @@ import mediapipe as mp
 import time
 import math
 import numpy as np
+from pos2key.subway_surfers_interface import SubwaySurfer, Grid
 
 class HandController:
-    def __init__(self, width=600, height=500, control_threshold=0.06):
+    def __init__(self, socketio, width=600, height=500, control_threshold=0.06):
         self.control_mode = False
         self.control_threshold = control_threshold
+
+        self.subway_surfer = SubwaySurfer(socketio=socketio)
 
         self.window_titles = ["Hand Capture", "Virtual Buttons"]
         self.lane = "Center"
@@ -29,7 +32,7 @@ class HandController:
         self.hand = self.mp_hands.Hands(
             max_num_hands=1,
             min_detection_confidence=0.7,
-            min_tracking_confidence=0.2,
+            min_tracking_confidence=0,
             static_image_mode=False
         )
 
@@ -148,9 +151,9 @@ class HandController:
             result = self.hand.process(rgb_frame)
 
             hand_frame = flipped_frame.copy()
-            button_frame = flipped_frame.copy()
+            # button_frame = flipped_frame.copy()
 
-            self.draw_buttons(button_frame)
+            self.draw_buttons(hand_frame)
 
             if result.multi_hand_landmarks:
                 hand_landmarks = result.multi_hand_landmarks[0]
@@ -196,52 +199,47 @@ class HandController:
                             self.CENTRE_ROLL()
                         case "Right", "Slide":
                             self.RIGHT_ROLL()
-                    time.sleep(0.1)
 
-            cv2.imshow(self.window_titles[0], hand_frame)
-            cv2.imshow(self.window_titles[1], button_frame)
+            # cv2.imshow(self.window_titles[0], hand_frame)
+            # cv2.imshow(self.window_titles[1], button_frame)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            # if cv2.waitKey(1) & 0xFF == ord('q'):
+            #     break
+            _, buffer = cv2.imencode('.jpg', hand_frame)
+            frame_bytes = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
         
         self.cap.release()
         cv2.destroyAllWindows()
     
     def LEFT_JUMP(self):
-        print("LEFT JUMP!")
-        pass
+        self.subway_surfer.move_to(Grid.LEFT_JUMP.value)
 
     def CENTRE_JUMP(self):
-        print("CENTRE JUMP!")
-        pass
+        self.subway_surfer.move_to(Grid.CENTRE_JUMP.value)
 
     def RIGHT_JUMP(self):
-        print("RIGHT JUMP!")
-        pass
+        self.subway_surfer.move_to(Grid.RIGHT_JUMP.value)
 
     def LEFT_NEUTRAL(self):
-        print("LEFT NEUTRAL!")
-        pass
+        self.subway_surfer.move_to(Grid.LEFT_NEUTRAL.value)
 
     def CENTRE_NEUTRAL(self):
-        print("CENTRE NEUTRAL")
-        pass
+        self.subway_surfer.move_to(Grid.CENTRE_NEUTRAL.value)
 
     def RIGHT_NEUTRAL(self):
-        print("RIGHT NEUTRAL!")
-        pass
+        self.subway_surfer.move_to(Grid.RIGHT_NEUTRAL.value)
 
     def LEFT_ROLL(self):
-        print("LEFT ROLL!")
-        pass
+        self.subway_surfer.move_to(Grid.LEFT_ROLL.value)
 
     def CENTRE_ROLL(self):
-        print("CENTRE ROLL!")
-        pass
+        self.subway_surfer.move_to(Grid.CENTRE_ROLL.value)
 
     def RIGHT_ROLL(self):
-        print("RIGHT ROLL!")
-        pass
+        self.subway_surfer.move_to(Grid.RIGHT_ROLL.value)
 
 
 

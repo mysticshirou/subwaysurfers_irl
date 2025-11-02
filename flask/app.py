@@ -2,10 +2,12 @@ from flask import Flask, send_from_directory, Response
 from pos2key.subway_surfers_interface import SubwaySurfer
 from flask_socketio import SocketIO, emit
 import cv2
+from pos2key.hand_tracking import HandController
 
 app = Flask(__name__, static_folder="vue_dist", static_url_path="")
 socketio = SocketIO(app)
-subway_surfer = SubwaySurfer(socketio=socketio)
+# subway_surfer = SubwaySurfer(socketio=socketio)
+model = HandController(socketio=socketio)
 
 @app.route('/')
 def index():
@@ -21,17 +23,17 @@ def connection_test():
 @app.route('/trigger-keyboard/<action>')
 def trigger_keyboard(action):
     if action == 'left':
-        subway_surfer._left()
+        model._left()
     elif action == 'right':
-        subway_surfer._right()
+        model._right()
     elif action == 'jump':
-        subway_surfer._jump()
+        model._jump()
     elif action == 'roll':
-        subway_surfer._roll()
+        model._roll()
     elif action == 'pause':
-        subway_surfer.toggle_pause()
+        model.toggle_pause()
     elif action == 'start':
-        subway_surfer.start_game()
+        model.start_game()
     else:
         return 'Invalid action!', 400
     return f'Action {action} sent!'
@@ -51,7 +53,7 @@ def generate_frames():
 
 @app.route('/webcam-feed')
 def video_feed():
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(model.run(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
