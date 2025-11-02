@@ -59,7 +59,7 @@ import SubwaySurfers from './components/SubwaySurfers.vue';
     display: flex;
     padding-block: 5vh;
     padding-inline: 5vh;
-    column-gap: 5vh; /* .app (100%) = .webcam-container (35%) + column-gap (5%) + .game-container (60%)*/
+    column-gap: 5vh; /* .app (100%) = .webcam-container (45%) + column-gap (5%) + .game-container (50%)*/
 
     width: 100vw;
     height: 100vh;
@@ -74,7 +74,7 @@ import SubwaySurfers from './components/SubwaySurfers.vue';
   }
 
   .webcam-container {
-    width: 35%; /* .app (100%) = .webcam-container (35%) + column-gap (5%) + .game-container (60%)*/
+    width: 45%; /* .app (100%) = .webcam-container (45%) + column-gap (5%) + .game-container (50%)*/
     height: 100%;
 
     /* border: 3px blue solid; */
@@ -84,7 +84,7 @@ import SubwaySurfers from './components/SubwaySurfers.vue';
   }
 
   .game-container {
-    width: 60%; /* .app (100%) = .webcam-container (35%) + column-gap (5%) + .game-container (60%)*/
+    width: 50%; /* .app (100%) = .webcam-container (45%) + column-gap (5%) + .game-container (50%)*/
     height: 100%;
 
     /* border: 3px red solid; */
