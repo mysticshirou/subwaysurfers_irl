@@ -1,12 +1,10 @@
 from flask import Flask, send_from_directory, Response
-from pos2key.subway_surfers_interface import SubwaySurfer
 from flask_socketio import SocketIO, emit
 import cv2
 from pos2key.hand_tracking import HandController
 
 app = Flask(__name__, static_folder="vue_dist", static_url_path="")
 socketio = SocketIO(app)
-# subway_surfer = SubwaySurfer(socketio=socketio)
 model = HandController(socketio=socketio)
 
 @app.route('/')
