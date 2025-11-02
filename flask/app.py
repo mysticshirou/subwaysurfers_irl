@@ -1,7 +1,7 @@
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, Response
 from pos2key.subway_surfers_interface import SubwaySurfer
 from flask_socketio import SocketIO, emit
-import time
+import cv2
 
 app = Flask(__name__, static_folder="vue_dist", static_url_path="")
 socketio = SocketIO(app)
@@ -35,6 +35,23 @@ def trigger_keyboard(action):
     else:
         return 'Invalid action!', 400
     return f'Action {action} sent!'
+
+# Generating mjpeg frames from webcam
+def generate_frames():
+    camera = cv2.VideoCapture(0)  # Camera source
+    while True:
+        success, frame = camera.read()
+        if not success:
+            break
+        else:
+            _, buffer = cv2.imencode('.jpg', frame)
+            frame_bytes = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+@app.route('/webcam-feed')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000)
