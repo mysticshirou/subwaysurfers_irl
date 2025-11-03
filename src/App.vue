@@ -1,7 +1,7 @@
 <template>
   <div class="app">
     <div class="webcam-container">
-      <Camera/>
+      <Camera :syncStatus="sync"/>
     </div>
     <div class="game-container">
       <SubwaySurfers ref="subwaySurfers"/>
@@ -18,7 +18,8 @@ import SubwaySurfers from './components/SubwaySurfers.vue';
     components: { SubwaySurfers, Camera },
     data() {
       return {
-        socket: null
+        socket: null,
+        sync: false
       }
     },
     methods: {
@@ -40,6 +41,10 @@ import SubwaySurfers from './components/SubwaySurfers.vue';
       this.socket.on('triggerKeyboard', (data) => {
         console.log('Event received:', data)
         this.simulateKeyPress(data.key, data.key, data.code)
+      })
+
+      this.socket.on('syncStatus', (syncState) => {
+        this.sync = syncState
       })
 
       this.socket.on('connectionTest', (msg) => {
