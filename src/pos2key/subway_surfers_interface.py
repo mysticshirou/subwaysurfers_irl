@@ -15,6 +15,7 @@ class KeyboardEventManager():
         Initialise SocketIO connection
         """
         self.socketio = socketio
+        self.is_paused = False
 
     def _jump(self) -> str:
         self.socketio.emit('triggerKeyboard', {'key': 'ArrowUp', "code": 38})
@@ -34,11 +35,13 @@ class KeyboardEventManager():
 
     def toggle_pause(self) -> str:
         self.socketio.emit('triggerKeyboard', {'key': 'Escape', "code": 27})
+        self.is_paused = not self.is_paused
+        self.socketio.emit('syncStatus', {'syncState': self.is_paused})
         return "Pause"
     
     def start_game(self) -> str:
         self.socketio.emit('triggerKeyboard', {'key': 'Enter', "code": 13})
-        return "Pause"
+        return "Start"
 
 class Grid(Enum):
     """
