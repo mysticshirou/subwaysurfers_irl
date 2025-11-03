@@ -106,7 +106,7 @@ class FrameViewer:
 
 class Tracker:
     def __init__(self, bbox_colour = (0,255,0), grid_colour=(0,0,255), camera_id=0, cls=0):
-        self.tracking_model = YOLO(cfg.get("yolo_model_path", default="models/yolo11n.onnx"))
+        self.tracking_model = YOLO(cfg.get("yolo_model_path", default="models/yolo11n.pt"))
         self.depth_model = pipeline(task="depth-estimation", model="depth-anything/Depth-Anything-V2-Small-hf")
 
         self.GRID_OFFSETX = (100, -100)
@@ -126,7 +126,7 @@ class Tracker:
         model_path: path to YOLO model
         """
         cfg.set("yolo_model_path", model_path)
-        self.tracking_model = YOLO(cfg.get("yolo_model_path", default="models/yolo11n.onnx"))
+        self.tracking_model = YOLO(cfg.get("yolo_model_path", default="models/yolo11n.pt"))
         return 1
     
     def set_grid_offset(self, offsetx: tuple[int|float] = (100, 100), offsety: tuple[int|float] = (50, 50)):
