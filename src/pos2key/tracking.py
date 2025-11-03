@@ -105,28 +105,28 @@ class FrameViewer:
                         pass
 
 class Tracker:
-    def __init__(self, bbox_colour = (0,255,0), grid_colour=(0,0,255), camera_id=0, cls=0):
-        self.tracking_model = YOLO(cfg.get("yolo_model_path", default="models/yolo11n.pt"))
-        self.depth_model = pipeline(task="depth-estimation", model="depth-anything/Depth-Anything-V2-Small-hf")
+    def __init__(self):
+        self.tracking_model = YOLO(cfg.get("tracking").get("model_path", default="models/yolo11n.pt"))
+        self.depth_model = pipeline(task="depth-estimation", model=cfg.get("tracking").get("depth_model", default="depth-anything/Depth-Anything-V2-Small-hf"))
 
-        self.GRID_OFFSETX = (100, -100)
-        self.GRID_OFFSETY = (50, -50)
+        self.GRID_OFFSETX = cfg.get("tracking").get("grid_offsetx", default=(50, -50))
+        self.GRID_OFFSETY = cfg.get("tracking").get("grid_offsety", default=(50, -50))
 
-        self.BBOX_COLOUR = bbox_colour
-        self.GRID_COLOUR = grid_colour
-        self.CAMERA = camera_id         # Camera index to use, default is 0
-        self.PERSON = cls               # Class # for person class, default is 0
+        self.BBOX_COLOUR = cfg.get("tracking").get("bbox_colour", default=(0,255,0))
+        self.GRID_COLOUR = cfg.get("tracking").get("grid_colour", default=(0,0,255))
 
-        self.output_dir = os.path.join(os.getcwd(), "outputs")
+        self.CAMERA = cfg.get("config").get("camera_id", default=0)   # Camera index to use, default is 0
+        self.PERSON = cfg.get("tracking").get("person_cls", default=0)  # Class # for person class, default is 0
+
+        self.output_dir = cfg.get("tracking").get("output_dir", default=os.path.join(os.getcwd(), "outputs"))
 
     def set_model_path(self, model_path: Path):
         """
-        Changes yolo_model_path in config and reloads the tracking model used
+        Changes yolo_model_path and reloads the tracking model used (This does not affect the config)
 
         model_path: path to YOLO model
         """
-        cfg.set("yolo_model_path", model_path)
-        self.tracking_model = YOLO(cfg.get("yolo_model_path", default="models/yolo11n.pt"))
+        self.tracking_model = YOLO(model_path)
         return 1
     
     def set_grid_offset(self, offsetx: tuple[int|float] = (100, 100), offsety: tuple[int|float] = (50, 50)):
@@ -135,8 +135,12 @@ class Tracker:
         """
         self.GRID_OFFSETX = (offsetx[0], offsetx[1] if offsetx[1] <= 0 else -offsetx[1])
         self.GRID_OFFSETY = (offsety[0], offsety[1] if offsety[1] <= 0 else -offsety[1])
+
+        cfg.set("tracking").get("grid_offsetx", self.GRID_OFFSETX)
+        cfg.set("tracking").get("grid_offsety", self.GRID_OFFSETY)
+
         return 1
-    
+        
     def depth_scan(self, frame: np.array):
         """
         Uses the Depth-Anything-V2-Small model to determine closest objects to camera
@@ -241,7 +245,7 @@ class Tracker:
                         overlay = cv2.rectangle(overlay, (x1, y1), (x2, y2), self.BBOX_COLOUR, -1)                    # 
                         annotated_frame = cv2.addWeighted(overlay, 0.4, annotated_frame, 0.6, 0.0)                    #
 
-                        annotated_frame = cv2.circle(annotated_frame, center, 5, self.BBOX_COLOUR, 2)                 # Player position
+                        annotated_frame = cv2.circle(annotated_frame, center, 5, self.GRID_COLOUR, 2)                 # Player position
 
                         label = f'ID: {TRACKING_ID} | Conf: {conf:.2f}'                                               # Label
                         cv2.putText(annotated_frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, self.GRID_COLOUR, 2)
@@ -261,7 +265,7 @@ class Tracker:
                             elif isinstance(value, float):
                                 GRID_VERTICAL.append(center[1] + round(value * (y2-y1)))
 
-                        annotated_frame = draw_gridlines(annotated_frame, GRID_HORIZONTAL, GRID_VERTICAL)
+                        annotated_frame = draw_gridlines(annotated_frame, GRID_HORIZONTAL, GRID_VERTICAL, self.GRID_COLOUR)
                         break
                 
                 if save: 
@@ -282,7 +286,7 @@ class Tracker:
             # Run YOLO tracking on the frame
             results = self.tracking_model.track(frame, persist=True, conf=0.1, iou=0.5, verbose=verbose)
             annotated_frame = frame.copy()
-            annotated_frame = draw_gridlines(annotated_frame, GRID_HORIZONTAL, GRID_VERTICAL)
+            annotated_frame = draw_gridlines(annotated_frame, GRID_HORIZONTAL, GRID_VERTICAL, self.GRID_COLOUR)
 
             id_found = False
             for det in results[0].boxes:
@@ -298,7 +302,7 @@ class Tracker:
                     overlay = cv2.rectangle(overlay, (x1, y1), (x2, y2), self.BBOX_COLOUR, -1)                  # 
                     annotated_frame = cv2.addWeighted(overlay, 0.4, annotated_frame, 0.6, 0.0)                  #
 
-                    annotated_frame = cv2.circle(annotated_frame, center, 5, self.BBOX_COLOUR, 2)               # Player position
+                    annotated_frame = cv2.circle(annotated_frame, center, 5, self.GRID_COLOUR, 2)               # Player position
                     
                     label = f'ID: {TRACKING_ID} | Conf: {conf:.2f}'                                             # Label
                     cv2.putText(annotated_frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, self.GRID_COLOUR, 2)

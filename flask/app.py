@@ -9,6 +9,9 @@ socketio = SocketIO(app)
 # Initialising tracker model, ("tracking", "hand-tracking")
 model = GeneralTracker(socketio=socketio, tracker="tracking")
 
+# DELETE THIS
+model.set
+
 @app.route('/')
 def index():
     return send_from_directory(app.static_folder, "index.html")
