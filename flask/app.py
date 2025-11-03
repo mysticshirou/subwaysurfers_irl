@@ -1,26 +1,13 @@
 from flask import Flask, send_from_directory, Response
 from flask_socketio import SocketIO, emit
 import cv2
-from pos2key.hand_tracking import HandController
-from pos2key.tracking import Tracker
+from pos2key.model_selector import GeneralTracker
 
 app = Flask(__name__, static_folder="vue_dist", static_url_path="")
 socketio = SocketIO(app)
-model = HandController(socketio=socketio)
 
-# Model setup (full body tracking) -------------------------------
-from pos2key.subway_surfers_interface import SubwaySurfer, Grid
-subway_surfer = SubwaySurfer(socketio=socketio)
-tracker = Tracker()
-tracker.set_model_path("./models/yolo11n.onnx") # .onnx or .pt
-def event_parser(event: dict):
-    if event.get("pause", None) is None:
-        subway_surfer.move_to(event)
-        return 1
-    elif event.get("pause", None):
-        subway_surfer.toggle_pause()
-        return 1
-# --------------------------------------------------------------
+# Initialising tracker model, ("tracking", "hand-tracking")
+model = GeneralTracker(socketio=socketio, tracker="tracking")
 
 @app.route('/')
 def index():
@@ -52,30 +39,21 @@ def trigger_keyboard(action):
     return f'Action {action} sent!'
 
 # Generating mjpeg frames from webcam
-# def generate_frames():
-#     camera = cv2.VideoCapture(0)  # Camera source
-#     while True:
-#         success, frame = camera.read()
-#         if not success:
-#             break
-#         else:
-#             _, buffer = cv2.imencode('.jpg', frame)
-#             frame_bytes = buffer.tobytes()
-#             yield (b'--frame\r\n'
-#                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+def generate_frames():
+    camera = cv2.VideoCapture(0)  # Camera source
+    while True:
+        success, frame = camera.read()
+        if not success:
+            break
+        else:
+            _, buffer = cv2.imencode('.jpg', frame)
+            frame_bytes = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
-# Hand tracking -----------------------------------------
-# @app.route('/webcam-feed')
-# def video_feed():
-#     return Response(model.run(), mimetype='multipart/x-mixed-replace; boundary=frame')
-# -------------------------------------------------------
-
-# Full body tracking ------------------------------------
 @app.route('/webcam-feed')
 def video_feed():
-    return Response(tracker.begin_tracking(broadcast_fn=event_parser, show_other_dets=True, use_wayland_viewer=False),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
-# -------------------------------------------------------
+    return Response(model.run(show_other_dets=True, use_wayland_viewer=False, fixed_center=True), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=True)
