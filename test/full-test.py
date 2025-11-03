@@ -18,17 +18,10 @@ def event_parser(event: dict):
         print(f"Event elapsed time: {start_time - perf_counter()}")
         return 1
     
-    match event.get("pause", None):
-        case True: 
-            subway_surfer.pause()
-            print(f"Event elapsed time: {start_time - perf_counter()}")
-            return 1
-        case False: 
-            subway_surfer.resume()
-            print(f"Event elapsed time: {start_time - perf_counter()}")
-            return 1
-        case _: return 0
-
+    if event.get("pause", None):
+        subway_surfer.toggle_pause()
+        print(f"Event elapsed time: {start_time - perf_counter()}")
+        return 1
     
         
 

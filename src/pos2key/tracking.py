@@ -276,7 +276,7 @@ class Tracker:
                 e = time.perf_counter()
                 print(f"Depth scan runtime: {e-s:.6f} seconds")
                 do_depth_scan = False
-                self.game_pause_event(broadcast_fn=broadcast_fn, pause=False)
+                self.game_pause_event(broadcast_fn=broadcast_fn, pause=True)
                 continue
 
             # Run YOLO tracking on the frame
@@ -324,6 +324,11 @@ class Tracker:
                 viewer.show(annotated_frame, window_name='Camera')
             else:
                 cv2.imshow('Camera', annotated_frame)
+
+            _, buffer = cv2.imencode('.jpg', annotated_frame)
+            frame_bytes = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
             if cv2.waitKey(1) == ord('q'):  # Press q to stop live tracking
                 break
