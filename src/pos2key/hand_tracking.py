@@ -7,6 +7,9 @@ import math
 import numpy as np
 from pos2key.subway_surfers_interface import SubwaySurfer, Grid
 
+from pos2key.config import Config
+cfg = Config()
+
 class HandController:
     def __init__(self, socketio, width=600, height=500, control_threshold=0.06):
         self.control_mode = False
@@ -21,7 +24,8 @@ class HandController:
         self.action_list = ("Jump", "Slide", "Neutral")
         self.buttons_config = {"Left": [None, (255, 0, 0)], "Center": [None, (0, 255, 0)], "Right": [None, (0, 0, 255)], "Jump": [None, (255, 255, 0)], "Slide": [None, (255, 0, 255)], "Neutral": [None, None]}
 
-        self.cap = cv2.VideoCapture(0)
+        self.CAMERA = cfg.get("config").get("camera_id", 0) 
+        self.cap = cv2.VideoCapture(self.CAMERA)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
