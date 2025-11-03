@@ -12,7 +12,7 @@ class Config(metaclass=Singleton):
         if entry is not None:
             self.settings = entry
         else:
-            with open("pyproject.toml", "rb") as f:
+            with open("config.toml", "rb") as f:
                 toml_dict = tomli.load(f)
             self.settings = toml_dict
 

@@ -1,15 +1,15 @@
 [config]
-camera_id = 0
+camera_id = 1
 
 [tracking]
 model_path = "models/yolo11n.pt"
 depth_model = "depth-anything/Depth-Anything-V2-Small-hf"
 
-grid_offsetx = (50, -50)
-grid_offsety = (50, -50)
+grid_offsetx = [50, -50]
+grid_offsety = [50, -50]
 
-bbox_colour = (0,255,0)
-grid_colour = (0,0,255)
+bbox_colour = [0,255,0]
+grid_colour = [0,0,255]
 
 person_cls = 0
 output_dir = "./outputs/"

@@ -106,19 +106,19 @@ class FrameViewer:
 
 class Tracker:
     def __init__(self):
-        self.tracking_model = YOLO(cfg.get("tracking").get("model_path", default="models/yolo11n.pt"))
-        self.depth_model = pipeline(task="depth-estimation", model=cfg.get("tracking").get("depth_model", default="depth-anything/Depth-Anything-V2-Small-hf"))
+        self.tracking_model = YOLO(cfg.get("tracking").get("model_path", "models/yolo11n.pt"))
+        self.depth_model = pipeline(task="depth-estimation", model=cfg.get("tracking").get("depth_model", "depth-anything/Depth-Anything-V2-Small-hf"))
 
-        self.GRID_OFFSETX = cfg.get("tracking").get("grid_offsetx", default=(50, -50))
-        self.GRID_OFFSETY = cfg.get("tracking").get("grid_offsety", default=(50, -50))
+        self.GRID_OFFSETX = cfg.get("tracking").get("grid_offsetx", (50, -50))
+        self.GRID_OFFSETY = cfg.get("tracking").get("grid_offsety", (50, -50))
 
-        self.BBOX_COLOUR = cfg.get("tracking").get("bbox_colour", default=(0,255,0))
-        self.GRID_COLOUR = cfg.get("tracking").get("grid_colour", default=(0,0,255))
+        self.BBOX_COLOUR = cfg.get("tracking").get("bbox_colour", (0,255,0))
+        self.GRID_COLOUR = cfg.get("tracking").get("grid_colour", (0,0,255))
 
-        self.CAMERA = cfg.get("config").get("camera_id", default=0)   # Camera index to use, default is 0
-        self.PERSON = cfg.get("tracking").get("person_cls", default=0)  # Class # for person class, default is 0
+        self.CAMERA = cfg.get("config").get("camera_id", 0)   # Camera index to use, default is 0
+        self.PERSON = cfg.get("tracking").get("person_cls", 0)  # Class # for person class, default is 0
 
-        self.output_dir = cfg.get("tracking").get("output_dir", default=os.path.join(os.getcwd(), "outputs"))
+        self.output_dir = cfg.get("tracking").get("output_dir", os.path.join(os.getcwd(), "outputs"))
 
     def set_model_path(self, model_path: Path):
         """
