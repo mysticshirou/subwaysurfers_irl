@@ -15,14 +15,20 @@ from pos2key.config import Config
 cfg = Config()
 
 class HandController:
-    def __init__(self, socketio, width=600, height=500, control_threshold=0.99999):
+    def __init__(self, socketio, width=600, height=500, control_threshold=0.9999):
+        """
+        width: video captured width
+        height: video captured height
+        control_threshold: Sensitivity of PointerMLP to accept hand as pointing gesture. (1 = Pointing, 0 = not pointing)
+        """
+
         self.control_mode = False
         self.control_threshold = control_threshold
 
         self.subway_surfer = SubwaySurfer(socketio=socketio)
 
         self.pgr = PointerMLP(input_size=21)
-        self.pgr.load_state_dict(torch.load(cfg.get("hand").get("model_path", None), map_location=torch.device('cpu')))
+        self.pgr.load_state_dict(torch.load(cfg.get("hand").get("model_path", None), map_location=torch.device('cuda')))
 
         self.window_titles = ["Hand Capture", "Virtual Buttons"]
         self.lane = "Center"
@@ -59,19 +65,22 @@ class HandController:
 
     def check_control(self, landmark):
         """return True when making a pointer"""
-        wrist = landmark[0]
+        wrist = landmark[self.wrist]
         distances = []
         for lm in landmark:
             dist = self.distance(lm.x, wrist.x, lm.y, wrist.y, lm.z, wrist.z)
             distances.append(dist)
 
         if self.pgr is not None:
-            output = self.pgr(np.array(distances, dtype=np.float32))
+            output = self.pgr(torch.tensor(distances, dtype=torch.float32).unsqueeze(0))
             pred = (output > self.control_threshold).int().item()
             return bool(pred)
         return True
     
     def find_control_point(self, landmark, frame):
+        """
+        Draws a huge purple dot on player's index finger tip
+        """
         cx, cy = landmark[self.finger_tips[1]].x, landmark[self.finger_tips[1]].y 
         w, h = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         x, y = int(cx*w), int(cy*h)
@@ -83,6 +92,9 @@ class HandController:
         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
     
     def draw_buttons(self, frame):
+        """
+        Virtual buttons for audience to see where they can point over for corresponding actions.
+        """
         w, h = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         overlay = frame.copy()
 
@@ -243,6 +255,9 @@ class HandController:
 
     def RIGHT_ROLL(self):
         self.subway_surfer.move_to(Grid.RIGHT_ROLL.value)
+    
+    def GAME_PAUSE(self):
+        self.subway_surfer.toggle_pause()
 
 
 
