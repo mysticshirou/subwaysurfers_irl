@@ -1,5 +1,5 @@
 [config]
-camera_id = 1
+camera_id = 0
 
 [tracking]
 model_path = "models/yolo11n.pt"
@@ -13,3 +13,6 @@ grid_colour = [0,0,255]
 
 person_cls = 0
 output_dir = "./outputs/"
+
+[hand]
+model_path = "models/pointer_model.pth"

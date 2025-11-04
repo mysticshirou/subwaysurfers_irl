@@ -5,17 +5,24 @@ import mediapipe as mp
 import time
 import math
 import numpy as np
+import torch
+
 from pos2key.subway_surfers_interface import SubwaySurfer, Grid
+
+from pos2key.pgr_mlp import PointerMLP
 
 from pos2key.config import Config
 cfg = Config()
 
 class HandController:
-    def __init__(self, socketio, width=600, height=500, control_threshold=0.06):
+    def __init__(self, socketio, width=600, height=500, control_threshold=0.99999):
         self.control_mode = False
         self.control_threshold = control_threshold
 
         self.subway_surfer = SubwaySurfer(socketio=socketio)
+
+        self.pgr = PointerMLP(input_size=21)
+        self.pgr.load_state_dict(torch.load(cfg.get("hand").get("model_path", None), map_location=torch.device('cpu')))
 
         self.window_titles = ["Hand Capture", "Virtual Buttons"]
         self.lane = "Center"
@@ -46,30 +53,22 @@ class HandController:
         self.wrist = 0
     
     def distance(self, x1, x2, y1, y2, z1=None, z2=None):
-        if z1!=None and z2!=None:
+        if z1 is not None and z2 is not None:
             return math.sqrt((x1-x2)**2+(y1-y2)**2+(z1-z2)**2)
         return math.sqrt((x1-x2)**2+(y1-y2)**2)
 
     def check_control(self, landmark):
         """return True when making a pointer"""
-        folded = 0
-        for tip, mcp in zip(self.finger_ips[2:], self.finger_mcps[2:]):
-            if self.distance(landmark[tip].x, landmark[mcp].x, landmark[tip].y, landmark[mcp].y) < self.control_threshold:
-                folded+=1
+        wrist = landmark[0]
+        distances = []
+        for lm in landmark:
+            dist = self.distance(lm.x, wrist.x, lm.y, wrist.y, lm.z, wrist.z)
+            distances.append(dist)
 
-        index_tip = landmark[self.finger_tips[1]]
-        index_mcp = landmark[self.finger_mcps[1]]
-
-        open_index_finger = (
-            self.distance(index_tip.x, index_mcp.x, index_tip.y, index_mcp.y, landmark[tip].z, landmark[mcp].z) > self.control_threshold
-        )
-
-        # closed_thumb = (
-        #     abs(landmark[self.finger_ip[0]].x - landmark[self.finger_ip[1]].x) < self.control_threshold and 
-        #     abs(landmark[self.finger_ip[0]].y - landmark[self.finger_ip[1]].y) < self.control_threshold
-        #     )
-
-        # return folded==3 and open_index_finger
+        if self.pgr is not None:
+            output = self.pgr(np.array(distances, dtype=np.float32))
+            pred = (output > self.control_threshold).int().item()
+            return bool(pred)
         return True
     
     def find_control_point(self, landmark, frame):
