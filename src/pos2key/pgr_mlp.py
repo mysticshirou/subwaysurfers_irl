@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class PointerMLP(torch.nn.Module):
-    def __init__(self, input_size=21, hidden_sizes=[128,64,32], num_classes=1):
+    def __init__(self, input_size=21, hidden_sizes=[256, 128, 64], num_classes=1):
         super(PointerMLP, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_sizes[0])
         self.relu1 = nn.ReLU()

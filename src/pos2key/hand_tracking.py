@@ -6,6 +6,8 @@ import time
 import math
 import numpy as np
 import torch
+import os
+from huggingface_hub import hf_hub_download
 
 from pos2key.subway_surfers_interface import SubwaySurfer, Grid
 
@@ -15,7 +17,7 @@ from pos2key.config import Config
 cfg = Config()
 
 class HandController:
-    def __init__(self, socketio, width=600, height=500, control_threshold=0.9999):
+    def __init__(self, socketio, width:int=600, height:int=500, control_threshold:int=0.999):
         """
         width: video captured width
         height: video captured height
@@ -27,8 +29,12 @@ class HandController:
 
         self.subway_surfer = SubwaySurfer(socketio=socketio)
 
-        self.pgr = PointerMLP(input_size=21)
-        self.pgr.load_state_dict(torch.load(cfg.get("hand").get("model_path", None), map_location=torch.device('cuda')))
+        self.repo_id = "TheRealAppleBoi/pointer_gesture_recognizer"
+        self.model_filename = "pointer_model.pth"
+        self.local_dir = "./models"
+        os.makedirs(self.local_dir, exist_ok=True)
+
+        self.pgr = self.load_model()
 
         self.window_titles = ["Hand Capture", "Virtual Buttons"]
         self.lane = "Center"
@@ -58,6 +64,24 @@ class HandController:
         self.finger_ips = [3, 7, 11, 15, 19]
         self.wrist = 0
     
+    def load_model(self):
+        local_model_path = os.path.join(self.local_dir, self.model_filename)
+        if not os.path.exists(local_model_path):
+            print("Downloading model from Hugging Face...")
+            local_model_path = hf_hub_download(repo_id=self.repo_id, 
+                                               filename=self.model_filename, 
+                                               local_dir=self.local_dir,
+                                               repo_type="model")
+            print("Downloaded to:", local_model_path)
+        else:
+            print("Model already exists locally:", local_model_path)
+
+        model = PointerMLP(input_size=21)
+        model.load_state_dict(torch.load(local_model_path))
+        model.eval()
+        print("Model loaded successfully!")
+        return model
+    
     def distance(self, x1, x2, y1, y2, z1=None, z2=None):
         if z1 is not None and z2 is not None:
             return math.sqrt((x1-x2)**2+(y1-y2)**2+(z1-z2)**2)
@@ -74,8 +98,8 @@ class HandController:
         if self.pgr is not None:
             output = self.pgr(torch.tensor(distances, dtype=torch.float32).unsqueeze(0))
             pred = (output > self.control_threshold).int().item()
-            return bool(pred)
-        return True
+            return bool(pred), output
+        return True, None
     
     def find_control_point(self, landmark, frame):
         """
@@ -87,8 +111,8 @@ class HandController:
         cv2.circle(frame, (x, y), 20, (255,0,255), -1)
         return cx, cy
     
-    def draw_info(self, frame, text):
-        cv2.putText(frame, text, (20, 40),
+    def draw_info(self, frame, text: str, pos=(20, 40)):
+        cv2.putText(frame, text, pos,
         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
     
     def draw_buttons(self, frame):
@@ -181,9 +205,11 @@ class HandController:
                     self.drawing_styles.get_default_hand_connections_style()
                     )
 
-                control_mode = self.check_control(hand_landmarks.landmark)
+                control_mode, conf = self.check_control(hand_landmarks.landmark)
                 mode_text = "Pointer (Control Mode)" if control_mode else "Open (Idle)"
                 self.draw_info(hand_frame, mode_text)
+                if conf:
+                    self.draw_info(hand_frame, f"{float(conf):.4f}", (20, 80))
 
                 if control_mode:
                     cx, cy = self.find_control_point(hand_landmarks.landmark, hand_frame)
@@ -214,6 +240,8 @@ class HandController:
                             self.CENTRE_ROLL()
                         case "Right", "Slide":
                             self.RIGHT_ROLL()
+                else:
+                    self.GAME_PAUSE()
 
             # cv2.imshow(self.window_titles[0], hand_frame)
             # cv2.imshow(self.window_titles[1], button_frame)
@@ -258,8 +286,6 @@ class HandController:
     
     def GAME_PAUSE(self):
         self.subway_surfer.toggle_pause()
-
-
 
 if __name__ == "__main__":
     controller = HandController()
