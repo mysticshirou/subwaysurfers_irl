@@ -23,9 +23,12 @@ class HandController:
         height: video captured height
         control_threshold: Sensitivity of PointerMLP to accept hand as pointing gesture. (1 = Pointing, 0 = not pointing)
         """
-
         self.control_mode = False
         self.control_threshold = control_threshold
+
+        self.last_hand_landmarks = None
+        self.last_seen_time = 0
+        self.HAND_HOLD_TIME = 0.2
 
         self.subway_surfer = SubwaySurfer(socketio=socketio)
 
@@ -194,9 +197,23 @@ class HandController:
 
             self.draw_buttons(hand_frame)
 
+            current_time = time.time()
+
             if result.multi_hand_landmarks:
                 hand_landmarks = result.multi_hand_landmarks[0]
+                self.last_hand_landmarks = hand_landmarks
+                self.last_seen_time = current_time
+                hand_valid = True
                 # print(hand_landmarks)
+            else:
+                # Hand lost — check grace period
+                if self.last_hand_landmarks and (current_time - self.last_seen_time) < self.HAND_HOLD_TIME:
+                    hand_landmarks = self.last_hand_landmarks
+                    hand_valid = True
+                else:
+                    hand_valid = False
+            
+            if hand_valid:
                 self.mp_drawing.draw_landmarks(
                     hand_frame, 
                     hand_landmarks, 
@@ -242,6 +259,8 @@ class HandController:
                             self.RIGHT_ROLL()
                 else:
                     self.GAME_PAUSE()
+            else:
+                self.draw_info(hand_frame, "Hand Lost")
 
             # cv2.imshow(self.window_titles[0], hand_frame)
             # cv2.imshow(self.window_titles[1], button_frame)
