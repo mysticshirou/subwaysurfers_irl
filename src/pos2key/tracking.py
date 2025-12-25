@@ -120,6 +120,9 @@ class Tracker:
 
         self.output_dir = cfg.get("tracking").get("output_dir", os.path.join(os.getcwd(), "outputs"))
 
+        self.centroid_prediction_rate = 1.1
+        self.previous_centre = None
+
     def set_model_path(self, model_path: Path):
         """
         Changes yolo_model_path and reloads the tracking model used (This does not affect the config)
@@ -175,14 +178,28 @@ class Tracker:
         return masked_frame, clustered_frame, binary_image
 
     def check_position(self, broadcast_fn: typing.Callable, position: tuple[int], h_thresh: list[int]|tuple[int], v_thresh: list[int]|tuple[int]):
+        if self.previous_centre is None:
+            self.previous_centre = position
+            return
+        
+        dx = position[0] - self.previous_centre[0]
+        dy = position[1] - self.previous_centre[1]
+
+        centroid_prediction_rate = self.centroid_prediction_rate
+
+        predicted_x = position[0] + (dx*centroid_prediction_rate)
+        predicted_y = position[1] + (dy*centroid_prediction_rate)
+
         x, y = 0, 0
-        if position[0] > h_thresh[0]: x = 1
-        elif position[0] < h_thresh[1]: x = -1
+        if predicted_x > h_thresh[0]: x = 1
+        elif predicted_x < h_thresh[1]: x = -1
         else: x = 0
 
-        if position[1] > v_thresh[0]: y = -1
-        elif position[1] < v_thresh[1]: y = 1
+        if predicted_y > v_thresh[0]: y = -1
+        elif predicted_y < v_thresh[1]: y = 1
         else: y = 0
+
+        self.previous_centre = position
 
         print({"x": x, "y": y})
         broadcast_fn({"x": x, "y": y})
@@ -250,8 +267,9 @@ class Tracker:
                         label = f'ID: {TRACKING_ID} | Conf: {conf:.2f}'                                               # Label
                         cv2.putText(annotated_frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, self.GRID_COLOUR, 2)
 
-                        # Grid lines horizontal
                         GRID_HORIZONTAL, GRID_VERTICAL = [], []
+
+                        # Grid lines horizontal
                         for value in self.GRID_OFFSETX:
                             if isinstance(value, int):
                                 GRID_HORIZONTAL.append(center[0] + value)
