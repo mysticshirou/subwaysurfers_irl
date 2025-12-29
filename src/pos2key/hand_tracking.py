@@ -26,7 +26,7 @@ class HandController:
         self.control_mode = False
         self.control_threshold = control_threshold
 
-        self.game_paused = False
+        self.game_paused = True
         self.hand_present = False
 
         self.last_hand_landmarks = None
@@ -232,9 +232,7 @@ class HandController:
                     self.draw_info(hand_frame, f"{float(conf):.4f}", (20, 80))
 
                 if control_mode:
-                    if self.game_paused:
-                        self.RIGHT_NEUTRAL()
-                        self.game_paused = False
+                    self.GAME_UNPAUSE()
 
                     cx, cy = self.find_control_point(hand_landmarks.landmark, hand_frame)
                     w, h = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -265,13 +263,9 @@ class HandController:
                         case "Right", "Slide":
                             self.RIGHT_ROLL()
                 else:
-                    if not self.game_paused:
-                        self.GAME_PAUSE()
-                        self.game_paused = True
-            else:
-                if not self.game_paused:
                     self.GAME_PAUSE()
-                    self.game_paused = True
+            else:
+                self.GAME_PAUSE()
                 self.draw_info(hand_frame, "Hand Lost")
 
             # cv2.imshow(self.window_titles[0], hand_frame)
@@ -316,8 +310,15 @@ class HandController:
         self.subway_surfer.move_to(Grid.RIGHT_ROLL.value)
     
     def GAME_PAUSE(self):
-        # broadcast_fn({"pause": pause})
-        self.subway_surfer.toggle_pause()
+        if not self.game_paused:
+            self.subway_surfer.toggle_pause()
+            self.game_paused = True
+
+    def GAME_UNPAUSE(self):
+        if self.game_paused:
+            self.subway_surfer.toggle_pause()
+            self.game_paused = False
+
 
 if __name__ == "__main__":
     controller = HandController()
