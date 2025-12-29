@@ -35,4 +35,4 @@ class GeneralTracker():
             case "tracking": 
                 return self.tracker.begin_tracking(broadcast_fn=self._event_parser, **kwargs)
             case "hand-tracking":
-                return self.tracker.run(**kwargs)
+                return self.tracker.run(broadcast_fn=self._event_parser, **kwargs)

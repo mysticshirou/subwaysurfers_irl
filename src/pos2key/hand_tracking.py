@@ -26,6 +26,9 @@ class HandController:
         self.control_mode = False
         self.control_threshold = control_threshold
 
+        self.game_paused = False
+        self.hand_present = False
+
         self.last_hand_landmarks = None
         self.last_seen_time = 0
         self.HAND_HOLD_TIME = 0.2
@@ -181,7 +184,7 @@ class HandController:
                 cv2.putText(frame, name, (text_x, text_y),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
 
-    def run(self):
+    def run(self, broadcast_fn, save: bool=False, show_other_dets: bool=False, fps: int=30, verbose=False, use_wayland_viewer: bool=False, fixed_center: bool=True):
         while True:
             success, frame = self.cap.read() # Frames in BGR
             if not success:
@@ -229,6 +232,10 @@ class HandController:
                     self.draw_info(hand_frame, f"{float(conf):.4f}", (20, 80))
 
                 if control_mode:
+                    if self.game_paused:
+                        self.RIGHT_NEUTRAL()
+                        self.game_paused = False
+
                     cx, cy = self.find_control_point(hand_landmarks.landmark, hand_frame)
                     w, h = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                     for name, config in self.buttons_config.items():
@@ -258,8 +265,13 @@ class HandController:
                         case "Right", "Slide":
                             self.RIGHT_ROLL()
                 else:
-                    self.GAME_PAUSE()
+                    if not self.game_paused:
+                        self.GAME_PAUSE()
+                        self.game_paused = True
             else:
+                if not self.game_paused:
+                    self.GAME_PAUSE()
+                    self.game_paused = True
                 self.draw_info(hand_frame, "Hand Lost")
 
             # cv2.imshow(self.window_titles[0], hand_frame)
@@ -304,6 +316,7 @@ class HandController:
         self.subway_surfer.move_to(Grid.RIGHT_ROLL.value)
     
     def GAME_PAUSE(self):
+        # broadcast_fn({"pause": pause})
         self.subway_surfer.toggle_pause()
 
 if __name__ == "__main__":
