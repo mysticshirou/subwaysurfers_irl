@@ -135,8 +135,8 @@ class HandController:
             widths[i] += 1 
 
         # Full height split: top (jump), middle (3 buttons), bottom (slide)
-        top_height = h // 6
-        bottom_height = h // 6
+        top_height = h // 5
+        bottom_height = h // 3
         center_height = h - top_height - bottom_height  # Exact middle height
 
         # Starting Y positions
