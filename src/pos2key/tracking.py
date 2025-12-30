@@ -183,7 +183,12 @@ class Tracker:
             return
         
         dx = (position[0] - self.previous_centre[0]) * 2
-        dy = (position[1] - self.previous_centre[1]) * 7
+        delta_y = position[1] - self.previous_centre[1]
+
+        if delta_y < 0:
+            dy = delta_y * 12
+        else:
+            dy = delta_y * 3
 
         centroid_prediction_rate = self.centroid_prediction_rate
 
@@ -379,4 +384,5 @@ if __name__ == "__main__":
         if choice == "1":
             tracker.begin_tracking(broadcast_fn=print, save=True, show_other_dets=True, use_wayland_viewer=use_viewer_flag)
         else:
+
             exit()
