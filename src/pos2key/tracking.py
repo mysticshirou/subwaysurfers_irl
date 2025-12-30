@@ -120,7 +120,7 @@ class Tracker:
 
         self.output_dir = cfg.get("tracking").get("output_dir", os.path.join(os.getcwd(), "outputs"))
 
-        self.centroid_prediction_rate = 1.1
+        self.centroid_prediction_rate = 1
         self.previous_centre = None
 
     def set_model_path(self, model_path: Path):
@@ -182,8 +182,8 @@ class Tracker:
             self.previous_centre = position
             return
         
-        dx = position[0] - self.previous_centre[0]
-        dy = position[1] - self.previous_centre[1]
+        dx = (position[0] - self.previous_centre[0]) * 2
+        dy = (position[1] - self.previous_centre[1]) * 7
 
         centroid_prediction_rate = self.centroid_prediction_rate
 
@@ -203,6 +203,8 @@ class Tracker:
 
         print({"x": x, "y": y})
         broadcast_fn({"x": x, "y": y})
+
+        return (predicted_x, predicted_y)
 
     def game_pause_event(self, broadcast_fn: typing.Callable, pause: bool):
         broadcast_fn({"pause": pause})
@@ -312,7 +314,7 @@ class Tracker:
                 if det.id == TRACKING_ID:
                     id_found = True
                     center = (int((x2-x1) / 2 + x1), int((y2-y1) / 2 + y1))
-                    self.check_position(broadcast_fn, center, GRID_HORIZONTAL, GRID_VERTICAL)
+                    xy_center = self.check_position(broadcast_fn, center, GRID_HORIZONTAL, GRID_VERTICAL)
                     conf = det.conf.item()
 
                     annotated_frame = cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), self.BBOX_COLOUR, 2)   # Bounding box drawing
@@ -320,7 +322,7 @@ class Tracker:
                     overlay = cv2.rectangle(overlay, (x1, y1), (x2, y2), self.BBOX_COLOUR, -1)                  # 
                     annotated_frame = cv2.addWeighted(overlay, 0.4, annotated_frame, 0.6, 0.0)                  #
 
-                    annotated_frame = cv2.circle(annotated_frame, center, 5, self.GRID_COLOUR, 2)               # Player position
+                    annotated_frame = cv2.circle(annotated_frame, xy_center, 5, self.GRID_COLOUR, 2)               # Player position
                     
                     label = f'ID: {TRACKING_ID} | Conf: {conf:.2f}'                                             # Label
                     cv2.putText(annotated_frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, self.GRID_COLOUR, 2)
