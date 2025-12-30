@@ -50,7 +50,7 @@ class HandController:
         self.buttons_config = {"Left": [None, (255, 0, 0)], "Center": [None, (0, 255, 0)], "Right": [None, (0, 0, 255)], "Jump": [None, (255, 255, 0)], "Slide": [None, (255, 0, 255)], "Neutral": [None, None]}
 
         self.CAMERA = cfg.get("config").get("camera_id", 0) 
-        self.cap = cv2.VideoCapture(self.CAMERA)
+        self.cap = cv2.VideoCapture(self.CAMERA, cv2.CAP_DSHOW)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 

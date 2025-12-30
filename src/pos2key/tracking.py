@@ -228,7 +228,7 @@ class Tracker:
             fixed_center: Use center of webcam or center of initial bbox
         """
         print("Started")
-        cap = cv2.VideoCapture(self.CAMERA)
+        cap = cv2.VideoCapture(self.CAMERA, cv2.CAP_DSHOW)
         ret, frame = cap.read()
         assert ret
         video_writer = cv2.VideoWriter(os.path.join(self.output_dir, "tracking_output.mp4"), cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame.shape[1], frame.shape[0]))

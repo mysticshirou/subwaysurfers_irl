@@ -40,7 +40,7 @@ def trigger_keyboard(action):
 
 # Generating mjpeg frames from webcam
 def generate_frames():
-    camera = cv2.VideoCapture(0)  # Camera source
+    camera = cv2.VideoCapture(GeneralTracker.tracker.CAMERA, cv2.CAP_DSHOW)  # Camera source
     while True:
         success, frame = camera.read()
         if not success:
