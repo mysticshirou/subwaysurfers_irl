@@ -214,163 +214,269 @@ class Tracker:
     def game_pause_event(self, broadcast_fn: typing.Callable, pause: bool):
         broadcast_fn({"pause": pause})
 
-    def begin_tracking(self, broadcast_fn: typing.Callable, save: bool=False, show_other_dets: bool=False, fps: int=30, verbose=False, use_wayland_viewer: bool=False, fixed_center: bool=True):
+    def begin_tracking(
+        self,
+        broadcast_fn: typing.Callable,
+        save: bool = False,
+        show_other_dets: bool = False,
+        fps: int = 30,
+        verbose: bool = False,
+        use_wayland_viewer: bool = False,
+        fixed_center: bool = True,
+    ):
         """
         Starts real time tracking
-        
-        Inputs:
-            broadcast_fn: Function used to broadcast outputs from check_position, must accept input of {"x": int, "y": int}
-            save: Whether to save initial depth scans
-            show_other_dets: Whether to show other detections that the tracker is not focused on
-            fps: FPS of output video
-            verbose: Whether to show ultralytics and other logs
-            use_wayland_viewer: idk
-            fixed_center: Use center of webcam or center of initial bbox
         """
         print("Started")
+
         cap = cv2.VideoCapture(self.CAMERA, cv2.CAP_DSHOW)
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        cap.set(cv2.CAP_PROP_FPS, 30)
+
+        # ---- Initial frame grab (required for writer / viewer init)
         ret, frame = cap.read()
-        assert ret
-        video_writer = cv2.VideoWriter(os.path.join(self.output_dir, "tracking_output.mp4"), cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame.shape[1], frame.shape[0]))
-        # Viewer is opt-in: only create if use_wayland_viewer True or explicit env var is set.
+        if not ret or frame is None:
+            raise RuntimeError("Failed to read initial frame from camera")
+
+        video_writer = cv2.VideoWriter(
+            os.path.join(self.output_dir, "tracking_output.mp4"),
+            cv2.VideoWriter_fourcc(*"mp4v"),
+            fps,
+            (frame.shape[1], frame.shape[0]),
+        )
+
         viewer = None
         if use_wayland_viewer or os.environ.get("USE_WAYLAND_VIEWER"):
             try:
-                viewer = FrameViewer(prefer_ffplay=use_wayland_viewer or bool(os.environ.get("USE_WAYLAND_VIEWER")))
-                viewer.open(frame.shape[1], frame.shape[0], fps=fps, window_name='Camera')
+                viewer = FrameViewer(
+                    prefer_ffplay=use_wayland_viewer
+                    or bool(os.environ.get("USE_WAYLAND_VIEWER"))
+                )
+                viewer.open(frame.shape[1], frame.shape[0], fps=fps, window_name="Camera")
             except Exception as e:
                 print(f"Viewer init failed: {e}")
+                viewer = None
 
         do_depth_scan = True
-        
+        fail_count = 0
+        TRACKING_ID = None
+        GRID_HORIZONTAL, GRID_VERTICAL = [], []
+
         while cap.isOpened():
-            _, frame = cap.read()
-            frame = cv2.flip(frame, 1)  # Flip frame to fix webcam mirroring
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                fail_count += 1
+                print("Camera frame grab failed, retrying...")
+                time.sleep(0.01)
+                if fail_count > 300000000000000000000000000000000000000000000000000000000000000:
+                    print("Camera appears disconnected, stopping tracking.")
+                    break
+                continue
+            fail_count = 0
+
+            frame = cv2.flip(frame, 1)
             annotated_frame = frame.copy()
 
+            # ------------------------------------------------------------
+            # Initial depth scan / re-scan
+            # ------------------------------------------------------------
             if do_depth_scan:
                 self.game_pause_event(broadcast_fn=broadcast_fn, pause=True)
                 s = time.perf_counter()
+
                 segmented, _, _ = self.depth_scan(annotated_frame)
-                results = self.tracking_model.track(segmented, persist=True, conf=0.1, verbose=verbose)
+                results = self.tracking_model.track(
+                    segmented, persist=True, conf=0.1, verbose=verbose
+                )
 
+                found = False
                 for det in results[0].boxes:
-                    if int(det.cls) == self.PERSON:    # If person class (0 in this case)
+                    if int(det.cls) == self.PERSON:
+                        found = True
                         x1, y1, x2, y2 = map(int, det.xyxy[0])
-                        TRACKING_ID = int(det.id.item()) if det.id is not None else -1  # Track ID
-                        conf = det.conf.item()      # Confidence score
-                        if fixed_center: 
-                            center = (int(annotated_frame.shape[1]/2), int(annotated_frame.shape[0]/2))
-                            print(center, annotated_frame.shape)
-                        else: center = (int((x2-x1) / 2 + x1), int((y2-y1) / 2 + y1))
+                        TRACKING_ID = int(det.id.item()) if det.id is not None else -1
+                        conf = det.conf.item()
 
-                        annotated_frame = cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), self.BBOX_COLOUR, 2)     # Bounding box drawing
-                        overlay = frame.copy()                                                                        # 
-                        overlay = cv2.rectangle(overlay, (x1, y1), (x2, y2), self.BBOX_COLOUR, -1)                    # 
-                        annotated_frame = cv2.addWeighted(overlay, 0.4, annotated_frame, 0.6, 0.0)                    #
+                        if fixed_center:
+                            center = (
+                                annotated_frame.shape[1] // 2,
+                                annotated_frame.shape[0] // 2,
+                            )
+                        else:
+                            center = (
+                                (x2 - x1) // 2 + x1,
+                                (y2 - y1) // 2 + y1,
+                            )
 
-                        annotated_frame = cv2.circle(annotated_frame, center, 5, self.GRID_COLOUR, 2)                 # Player position
+                        annotated_frame = cv2.rectangle(
+                            annotated_frame, (x1, y1), (x2, y2), self.BBOX_COLOUR, 2
+                        )
+                        overlay = frame.copy()
+                        overlay = cv2.rectangle(
+                            overlay, (x1, y1), (x2, y2), self.BBOX_COLOUR, -1
+                        )
+                        annotated_frame = cv2.addWeighted(
+                            overlay, 0.4, annotated_frame, 0.6, 0.0
+                        )
 
-                        label = f'ID: {TRACKING_ID} | Conf: {conf:.2f}'                                               # Label
-                        cv2.putText(annotated_frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, self.GRID_COLOUR, 2)
+                        annotated_frame = cv2.circle(
+                            annotated_frame, center, 5, self.GRID_COLOUR, 2
+                        )
+
+                        label = f"ID: {TRACKING_ID} | Conf: {conf:.2f}"
+                        cv2.putText(
+                            annotated_frame,
+                            label,
+                            (x1, y1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.6,
+                            self.GRID_COLOUR,
+                            2,
+                        )
 
                         GRID_HORIZONTAL, GRID_VERTICAL = [], []
 
-                        # Grid lines horizontal
                         for value in self.GRID_OFFSETX:
                             if isinstance(value, int):
                                 GRID_HORIZONTAL.append(center[0] + value)
-                            elif isinstance(value, float):
-                                GRID_HORIZONTAL.append(center[0] + round(value * (x2-x1)))
+                            else:
+                                GRID_HORIZONTAL.append(center[0] + round(value * (x2 - x1)))
 
-                        # Grid lines vertical
                         for value in self.GRID_OFFSETY:
                             if isinstance(value, int):
                                 GRID_VERTICAL.append(center[1] + value)
-                            elif isinstance(value, float):
-                                GRID_VERTICAL.append(center[1] + round(value * (y2-y1)))
+                            else:
+                                GRID_VERTICAL.append(center[1] + round(value * (y2 - y1)))
 
-                        annotated_frame = draw_gridlines(annotated_frame, GRID_HORIZONTAL, GRID_VERTICAL, self.GRID_COLOUR)
+                        annotated_frame = draw_gridlines(
+                            annotated_frame,
+                            GRID_HORIZONTAL,
+                            GRID_VERTICAL,
+                            self.GRID_COLOUR,
+                        )
                         break
-                
-                if save: 
-                    segmented = cv2.rectangle(segmented, (x1, y1), (x2, y2), self.BBOX_COLOUR, 2)
-                    segmented = cv2.circle(segmented, center, 5, self.BBOX_COLOUR, 2) 
-                    segmented = draw_gridlines(segmented, GRID_HORIZONTAL, GRID_VERTICAL)
 
-                    cv2.imwrite(os.path.join(self.output_dir, "initial_scan.png"), annotated_frame)
-                    cv2.imwrite(os.path.join(self.output_dir, "masked_scan.png"), segmented)
-                    print(f"Saved to {os.path.join(self.output_dir, 'initial_scan.png')}")
+                if not found:
+                    print("Depth scan found no person, retrying...")
+                    continue
+
+                if save:
+                    cv2.imwrite(
+                        os.path.join(self.output_dir, "initial_scan.png"),
+                        annotated_frame,
+                    )
 
                 e = time.perf_counter()
-                print(f"Depth scan runtime: {e-s:.6f} seconds")
+                print(f"Depth scan runtime: {e - s:.6f} seconds")
+
                 do_depth_scan = False
                 self.game_pause_event(broadcast_fn=broadcast_fn, pause=True)
                 continue
 
-            # Run YOLO tracking on the frame
-            results = self.tracking_model.track(frame, persist=True, conf=0.1, iou=0.5, verbose=verbose)
-            annotated_frame = frame.copy()
-            annotated_frame = draw_gridlines(annotated_frame, GRID_HORIZONTAL, GRID_VERTICAL, self.GRID_COLOUR)
+            # ------------------------------------------------------------
+            # Tracking loop
+            # ------------------------------------------------------------
+            results = self.tracking_model.track(
+                frame, persist=True, conf=0.1, iou=0.5, verbose=verbose
+            )
+
+            annotated_frame = draw_gridlines(
+                annotated_frame, GRID_HORIZONTAL, GRID_VERTICAL, self.GRID_COLOUR
+            )
 
             id_found = False
-            for det in results[0].boxes:
-                x1, y1, x2, y2 = map(int, det.xyxy[0])
-                if det.id == TRACKING_ID:
-                    id_found = True
-                    center = (int((x2-x1) / 2 + x1), int((y2-y1) / 2 + y1))
-                    xy_center = self.check_position(broadcast_fn, center, GRID_HORIZONTAL, GRID_VERTICAL)
-                    conf = det.conf.item()
 
-                    annotated_frame = cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), self.BBOX_COLOUR, 2)   # Bounding box drawing
-                    overlay = frame.copy()                                                                      # 
-                    overlay = cv2.rectangle(overlay, (x1, y1), (x2, y2), self.BBOX_COLOUR, -1)                  # 
-                    annotated_frame = cv2.addWeighted(overlay, 0.4, annotated_frame, 0.6, 0.0)                  #
+            if results and len(results[0].boxes) > 0:
+                for det in results[0].boxes:
+                    x1, y1, x2, y2 = map(int, det.xyxy[0])
 
-                    annotated_frame = cv2.circle(annotated_frame, xy_center, 5, self.GRID_COLOUR, 2)               # Player position
-                    
-                    label = f'ID: {TRACKING_ID} | Conf: {conf:.2f}'                                             # Label
-                    cv2.putText(annotated_frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, self.GRID_COLOUR, 2)
+                    if det.id is not None and int(det.id.item()) == TRACKING_ID:
+                        id_found = True
+                        center = (
+                            (x2 - x1) // 2 + x1,
+                            (y2 - y1) // 2 + y1,
+                        )
 
-                elif show_other_dets:
-                    conf = det.conf.item()
-                    tracking_id = int(det.id.item()) if det.id is not None else -1
-                    annotated_frame = cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (100, 0, 0), 1)        # Bounding box drawing
+                        xy_center = self.check_position(
+                            broadcast_fn, center, GRID_HORIZONTAL, GRID_VERTICAL
+                        )
+                        conf = det.conf.item()
 
-                    label = f'ID: {tracking_id} | Conf: {conf:.2f}'                                             # Label
-                    cv2.putText(annotated_frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, self.GRID_COLOUR, 1)
+                        annotated_frame = cv2.rectangle(
+                            annotated_frame, (x1, y1), (x2, y2), self.BBOX_COLOUR, 2
+                        )
+                        overlay = frame.copy()
+                        overlay = cv2.rectangle(
+                            overlay, (x1, y1), (x2, y2), self.BBOX_COLOUR, -1
+                        )
+                        annotated_frame = cv2.addWeighted(
+                            overlay, 0.4, annotated_frame, 0.6, 0.0
+                        )
 
-            # Save the frame
+                        annotated_frame = cv2.circle(
+                            annotated_frame, xy_center, 5, self.GRID_COLOUR, 2
+                        )
+
+                        label = f"ID: {TRACKING_ID} | Conf: {conf:.2f}"
+                        cv2.putText(
+                            annotated_frame,
+                            label,
+                            (x1, y1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.6,
+                            self.GRID_COLOUR,
+                            2,
+                        )
+
+                    elif show_other_dets:
+                        conf = det.conf.item()
+                        tid = int(det.id.item()) if det.id is not None else -1
+                        annotated_frame = cv2.rectangle(
+                            annotated_frame, (x1, y1), (x2, y2), (100, 0, 0), 1
+                        )
+                        cv2.putText(
+                            annotated_frame,
+                            f"ID: {tid} | Conf: {conf:.2f}",
+                            (x1, y1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.6,
+                            self.GRID_COLOUR,
+                            1,
+                        )
+
             if not id_found:
                 print("Lost track of person, rescanning...")
                 do_depth_scan = True
 
             video_writer.write(annotated_frame)
-            if verbose: print("Written to video writer")
 
-            # Show with viewer only if explicitly enabled; otherwise keep default cv2.imshow.
             if viewer is not None:
-                viewer.show(annotated_frame, window_name='Camera')
+                viewer.show(annotated_frame, window_name="Camera")
             else:
-                cv2.imshow('Camera', annotated_frame)
+                cv2.imshow("Camera", annotated_frame)
 
-            _, buffer = cv2.imencode('.jpg', annotated_frame)
-            frame_bytes = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            _, buffer = cv2.imencode(".jpg", annotated_frame)
+            yield (
+                b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n\r\n"
+                + buffer.tobytes()
+                + b"\r\n"
+            )
 
-            if cv2.waitKey(1) == ord('q'):  # Press q to stop live tracking
+            if cv2.waitKey(1) == ord("q"):
                 break
 
         cap.release()
         video_writer.release()
 
-        # Close viewer if used
         try:
             if viewer is not None:
                 viewer.close()
         except Exception:
             pass
+
 
 
 if __name__ == "__main__":
