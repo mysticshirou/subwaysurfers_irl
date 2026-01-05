@@ -14,12 +14,12 @@ import subprocess
 from pos2key.config import Config
 cfg = Config()
 
-def draw_gridlines(image, h_thresh: list[int]|tuple[int], v_thresh: list[int]|tuple[int], colour=(0,0,255)):
+def draw_gridlines(image, h_thresh: list[int]|tuple[int], v_thresh: list[int]|tuple[int], colour=(255, 20, 147)):
     """Draws gridlines on image"""
-    image = cv2.line(image, (h_thresh[0], 0), (h_thresh[0], image.shape[0]), colour, 2)
-    image = cv2.line(image, (h_thresh[1], 0), (h_thresh[1], image.shape[0]), colour, 2)
-    image = cv2.line(image, (0, v_thresh[0]), (image.shape[1], v_thresh[0]), colour, 2)
-    image = cv2.line(image, (0, v_thresh[1]), (image.shape[1], v_thresh[1]), colour, 2)
+    image = cv2.line(image, (h_thresh[0], 0), (h_thresh[0], image.shape[0]), colour, 4)
+    image = cv2.line(image, (h_thresh[1], 0), (h_thresh[1], image.shape[0]), colour, 4)
+    image = cv2.line(image, (0, v_thresh[0]), (image.shape[1], v_thresh[0]), colour, 4)
+    image = cv2.line(image, (0, v_thresh[1]), (image.shape[1], v_thresh[1]), colour, 4)
     return image
 
 class FrameViewer:
@@ -186,7 +186,7 @@ class Tracker:
         delta_y = position[1] - self.previous_centre[1]
 
         if delta_y < 0:
-            dy = delta_y * 12
+            dy = delta_y * 6
         else:
             dy = delta_y * 3
 
@@ -354,7 +354,6 @@ class Tracker:
                             annotated_frame,
                             GRID_HORIZONTAL,
                             GRID_VERTICAL,
-                            self.GRID_COLOUR,
                         )
                         break
 
@@ -383,7 +382,7 @@ class Tracker:
             )
 
             annotated_frame = draw_gridlines(
-                annotated_frame, GRID_HORIZONTAL, GRID_VERTICAL, self.GRID_COLOUR
+                annotated_frame, GRID_HORIZONTAL, GRID_VERTICAL
             )
 
             id_found = False
